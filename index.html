@@ -329,11 +329,19 @@ function render() {
     return;
   }
   const q = $('q').value.trim().toLowerCase();
+  // 带 W 的编号默认隐藏，搜索词里有 W 时才显示
+  const showW = q.includes('w');
+  let hidden = 0;
   const list = state.items
-    .filter(it => !q || it.code.toLowerCase().includes(q))
+    .filter(it => {
+      const code = it.code.toLowerCase();
+      if (q && !code.includes(q)) return false;
+      if (!showW && code.includes('w')) { hidden++; return false; }
+      return true;
+    })
     .sort((a, b) => collator.compare(a.code, b.code));
   const d = new Date(state.importedAt);
-  $('meta').textContent = `${q ? '找到' : '共'} ${list.length} 件 · 数据导入于 ${d.getMonth() + 1}月${d.getDate()}日`;
+  $('meta').textContent = `${q ? '找到' : '共'} ${list.length} 件${hidden ? `（已隐藏 ${hidden} 件带 W 的，搜索时输入 W 可查看）` : ''} · 数据导入于 ${d.getMonth() + 1}月${d.getDate()}日`;
   $('results').innerHTML = list.length ? list.map(it => {
     const edited = it.row in state.edits;
     const now = edited ? state.edits[it.row] : it.now;
