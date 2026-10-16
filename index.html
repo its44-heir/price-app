@@ -61,8 +61,9 @@
   .note { color: var(--muted); font-size: 13px; padding: 0 16px; line-height: 1.6; }
 
   .shade { position: fixed; inset: 0; z-index: 20; background: rgba(0,0,0,.35); display: flex; }
-  .sheet { margin-top: auto; width: 100%; background: var(--card); border-radius: 16px 16px 0 0;
-    padding: 18px 16px calc(env(safe-area-inset-bottom) + 16px); }
+  /* 改价格框放在顶部，避免被 iPhone 数字键盘挡住 */
+  .sheet { margin-bottom: auto; width: 100%; background: var(--card); border-radius: 0 0 16px 16px;
+    padding: calc(env(safe-area-inset-top) + 16px) 16px 16px; }
   .alert { margin: auto 20px; width: 100%; background: var(--card); border-radius: 14px; padding: 18px 16px; text-align: center; }
   .alert p { color: var(--muted); font-size: 14px; margin: 6px 0 14px; line-height: 1.5; }
   #price { width: 100%; border: 2px solid var(--accent); border-radius: 10px; padding: 10px 12px; margin: 8px 0 4px;
