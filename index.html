@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="商品价格">
+<meta name="theme-color" content="#f5f5f7">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>商品价格</title>
+<style>
+  :root {
+    --bg: #f5f5f7; --card: #fff; --text: #111; --muted: #8e8e93; --line: #e5e5ea;
+    --field: #eeeef0; --accent: #007aff; --danger: #ff3b30;
+    --warn-bg: #fff4e5; --warn-text: #a35a00; --warn-line: #ffd9a8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #000; --card: #1c1c1e; --text: #f2f2f7; --muted: #8e8e93; --line: #2c2c2e;
+      --field: #2c2c2e; --accent: #0a84ff; --danger: #ff453a;
+      --warn-bg: #3a2a10; --warn-text: #ffb340; --warn-line: #5a4318;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  .hidden { display: none !important; }
+
+  header { position: sticky; top: 0; z-index: 5; background: var(--card);
+    padding: calc(env(safe-area-inset-top) + 12px) 14px 10px; border-bottom: 1px solid var(--line); }
+  .title { display: flex; justify-content: space-between; align-items: center; font-size: 20px; font-weight: 700; }
+  .link { color: var(--accent); font-size: 15px; font-weight: 500; }
+  #q { width: 100%; margin-top: 10px; background: var(--field); color: var(--text); border: 0; border-radius: 10px;
+    padding: 10px 12px; font-size: 17px; outline: none; -webkit-appearance: none; }
+  .warn { background: var(--warn-bg); color: var(--warn-text); font-size: 13px; padding: 7px 14px;
+    border-bottom: 1px solid var(--warn-line); }
+  .meta { font-size: 12px; color: var(--muted); padding: 8px 14px 2px; }
+  main { padding-bottom: calc(env(safe-area-inset-bottom) + 20px); }
+
+  .item { display: block; width: calc(100% - 20px); text-align: left; background: var(--card);
+    margin: 8px 10px; border-radius: 12px; padding: 12px 14px; }
+  .code { font-size: 17px; font-weight: 700; word-break: break-all; }
+  .tag { font-size: 11px; font-weight: 500; background: var(--warn-bg); color: var(--warn-text);
+    border-radius: 4px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; }
+  .row { display: grid; grid-template-columns: 1fr 1fr 1fr; margin-top: 8px; }
+  .k { color: var(--muted); font-size: 12px; }
+  .v { font-size: 17px; font-weight: 600; margin-top: 2px; }
+  .old { color: var(--muted); font-weight: 500; }
+  .now { color: var(--accent); }
+  .empty { text-align: center; color: var(--muted); padding: 60px 24px; line-height: 1.7; }
+
+  .page { position: fixed; inset: 0; z-index: 10; background: var(--bg); overflow-y: auto; }
+  .list { background: var(--card); margin: 14px 10px; border-radius: 12px; overflow: hidden; }
+  .li { display: block; width: 100%; text-align: left; padding: 14px; border-bottom: 1px solid var(--line); font-size: 16px; }
+  .li:last-child { border-bottom: 0; }
+  .li small { display: block; color: var(--muted); font-size: 13px; margin-top: 3px; }
+  .note { color: var(--muted); font-size: 13px; padding: 0 16px; line-height: 1.6; }
+
+  .shade { position: fixed; inset: 0; z-index: 20; background: rgba(0,0,0,.35); display: flex; }
+  .sheet { margin-top: auto; width: 100%; background: var(--card); border-radius: 16px 16px 0 0;
+    padding: 18px 16px calc(env(safe-area-inset-bottom) + 16px); }
+  .alert { margin: auto 20px; width: 100%; background: var(--card); border-radius: 14px; padding: 18px 16px; text-align: center; }
+  .alert p { color: var(--muted); font-size: 14px; margin: 6px 0 14px; line-height: 1.5; }
+  #price { width: 100%; border: 2px solid var(--accent); border-radius: 10px; padding: 10px 12px; margin: 8px 0 4px;
+    font-size: 24px; font-weight: 700; background: var(--card); color: var(--text); outline: none; }
+  .err { color: var(--danger); font-size: 13px; min-height: 18px; }
+  .btns { display: flex; gap: 10px; margin-top: 10px; }
+  .b { flex: 1; text-align: center; padding: 12px; border-radius: 10px; font-size: 16px; font-weight: 600; background: var(--field); }
+  .b.primary { background: var(--accent); color: #fff; }
+  .b.danger { color: var(--danger); }
+  .toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 30px); transform: translateX(-50%);
+    z-index: 30; background: rgba(0,0,0,.8); color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 14px;
+    max-width: 85%; text-align: center; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title">商品价格 <button class="link" id="openIO">导入/导出</button></div>
+  <input id="q" type="search" placeholder="搜索编号" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+</header>
+<div class="warn hidden" id="pendingBar"></div>
+<main>
+  <div class="meta" id="meta"></div>
+  <div id="results"></div>
+</main>
+
+<!-- 导入/导出页 -->
+<div class="page hidden" id="ioPage">
+  <header><div class="title"><button class="link" id="closeIO">‹ 返回</button><span>导入/导出</span><span style="width:48px"></span></div></header>
+  <div class="list">
+    <button class="li" id="importBtn">导入 Excel<small>选择电脑传来的文件，替换全部数据</small></button>
+    <button class="li" id="exportBtn">导出 Excel<small>生成改好的表，传回电脑覆盖原文件</small></button>
+  </div>
+  <p class="note" id="ioInfo"></p>
+  <p class="note">提示：微信收到的 Excel，先在微信里“用其他应用打开 → 存储到文件”，再在这里导入。</p>
+  <input type="file" id="file" class="hidden" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
+</div>
+
+<!-- 改价格 -->
+<div class="shade hidden" id="editShade">
+  <form class="sheet" id="editForm">
+    <div class="code" id="editCode"></div>
+    <div class="k" style="margin-top:6px" id="editOld"></div>
+    <div class="k" style="margin-top:12px">现在价格</div>
+    <input id="price" inputmode="decimal" autocomplete="off">
+    <div class="err" id="editErr"></div>
+    <div class="btns"><button type="button" class="b" id="editCancel">取消</button><button type="submit" class="b primary">保存</button></div>
+  </form>
+</div>
+
+<!-- 导入前提醒 -->
+<div class="shade hidden" id="confirmShade">
+  <div class="alert">
+    <b id="confirmTitle"></b>
+    <p>导入新表会覆盖这些修改</p>
+    <div class="btns"><button class="b" id="goExport">先去导出</button><button class="b danger" id="forceImport">仍然导入</button></div>
+  </div>
+</div>
+
+<div class="toast hidden" id="toast"></div>
+
+<script src="xlsx.full.min.js"></script>
+<script>
+const STORE_KEY = 'price-app-v1';
+const $ = id => document.getElementById(id);
+
+// 状态：fileB64 是当前基准 Excel（导入的或上次导出的）；edits 是还没导出的现价修改，key 为表格行号
+let state = load();
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || null; } catch { return null; }
+}
+function save() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); return true; }
+  catch (e) { toast('保存失败：手机存储空间不足'); return false; }
+}
+
+// ---------- Excel 读取 ----------
+const COLS = {
+  code: ['编号', '名称', '货号', '款号'],
+  old:  ['之前', '原价', '以前', '旧价'],
+  now:  ['现在', '现价', '当前', '新价'],
+  qty:  ['件数', '数量', '库存'],
+};
+
+function detectCols(header) {
+  const found = {};
+  for (const [key, words] of Object.entries(COLS)) {
+    const i = header.findIndex(h => words.some(w => String(h).includes(w)));
+    if (i >= 0 && !Object.values(found).includes(i)) found[key] = i;
+  }
+  // 四列都认出来才用表头，否则按 A–D 顺序
+  return Object.keys(found).length === 4 ? found : { code: 0, old: 1, now: 2, qty: 3 };
+}
+
+function parseWorkbook(b64) {
+  const wb = XLSX.read(b64, { type: 'base64' });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  if (!ws || !ws['!ref']) throw new Error('第一个工作表是空的');
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '', blankrows: true });
+  const cols = detectCols(aoa[0] || []);
+  const items = [];
+  for (let i = 1; i < aoa.length; i++) {
+    const r = aoa[i];
+    const code = String(r[cols.code] ?? '').trim();
+    if (!code) continue;
+    // row/col 记录在表格中的绝对位置，导出时用来写回
+    items.push({ row: range.s.r + i, code, old: r[cols.old], now: r[cols.now], qty: r[cols.qty] });
+  }
+  return { items, nowCol: range.s.c + cols.now };
+}
+
+function bufToB64(buf) {
+  const bytes = new Uint8Array(buf);
+  let s = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+
+async function importFile(file) {
+  try {
+    const b64 = bufToB64(await file.arrayBuffer());
+    const { items, nowCol } = parseWorkbook(b64);
+    if (!items.length) throw new Error('没有读到任何商品（第一行应为表头）');
+    const prev = state;
+    state = { fileName: file.name, importedAt: Date.now(), fileB64: b64, items, nowCol, edits: {} };
+    if (!save()) { state = prev; return; }
+    closeIO();
+    $('q').value = '';
+    render();
+    toast(`已导入 ${items.length} 件商品`);
+  } catch (e) {
+    toast('导入失败：' + e.message);
+  }
+}
+
+// ---------- Excel 导出 ----------
+function exportName() {
+  const d = new Date();
+  const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+  const base = (state.fileName || '商品').replace(/\.(xlsx|xls|csv)$/i, '').replace(/-\d{8}$/, '');
+  return `${base}-${stamp}.xlsx`;
+}
+
+// 直接改 .xlsx 压缩包里第一个工作表的单元格数值，其余内容（格式、列宽、其他工作表）原样保留
+function patchXlsx(b64, edits, nowCol) {
+  const CFB = XLSX.CFB;
+  const zip = CFB.read(b64, { type: 'base64' });
+  const dec = new TextDecoder(), enc = new TextEncoder(), parser = new DOMParser();
+  const readXml = p => { const e = CFB.find(zip, '/' + p); return e && parser.parseFromString(dec.decode(e.content), 'application/xml'); };
+
+  const wbXml = readXml('xl/workbook.xml');
+  const rels = readXml('xl/_rels/workbook.xml.rels');
+  const firstSheet = wbXml.getElementsByTagName('sheet')[0];
+  const rid = firstSheet.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id');
+  const rel = [...rels.getElementsByTagName('Relationship')].find(r => r.getAttribute('Id') === rid);
+  const target = rel.getAttribute('Target');
+  const sheetPath = target.startsWith('/') ? target.slice(1) : 'xl/' + target;
+  const doc = readXml(sheetPath);
+  const ns = doc.documentElement.namespaceURI;
+  const sheetData = doc.getElementsByTagName('sheetData')[0];
+  const colOf = ref => XLSX.utils.decode_cell(ref).c;
+  let removedFormula = false;
+
+  for (const [row, val] of Object.entries(edits)) {
+    const r = Number(row) + 1;
+    const addr = XLSX.utils.encode_cell({ r: Number(row), c: nowCol });
+    const rows = [...sheetData.getElementsByTagName('row')];
+    let rowEl = rows.find(x => Number(x.getAttribute('r')) === r);
+    if (!rowEl) {
+      rowEl = doc.createElementNS(ns, 'row');
+      rowEl.setAttribute('r', r);
+      sheetData.insertBefore(rowEl, rows.find(x => Number(x.getAttribute('r')) > r) || null);
+    }
+    const cells = [...rowEl.getElementsByTagName('c')];
+    if (cells.some(c => !c.getAttribute('r'))) throw new Error('no cell refs');
+    let cell = cells.find(c => c.getAttribute('r') === addr);
+    if (!cell) {
+      cell = doc.createElementNS(ns, 'c');
+      cell.setAttribute('r', addr);
+      rowEl.insertBefore(cell, cells.find(c => colOf(c.getAttribute('r')) > nowCol) || null);
+    }
+    for (const child of [...cell.childNodes]) {
+      if (child.localName === 'f') removedFormula = true;
+      cell.removeChild(child);
+    }
+    cell.removeAttribute('t');
+    const v = doc.createElementNS(ns, 'v');
+    v.textContent = String(val);
+    cell.appendChild(v);
+  }
+  CFB.utils.cfb_add(zip, '/' + sheetPath, enc.encode(new XMLSerializer().serializeToString(doc)));
+  // 公式被替换成数值后，旧的计算链会让 Excel 报错，删掉让 Excel 自己重建
+  if (removedFormula && CFB.find(zip, '/xl/calcChain.xml')) {
+    CFB.utils.cfb_del(zip, '/xl/calcChain.xml');
+    const ct = readXml('[Content_Types].xml');
+    for (const o of [...ct.getElementsByTagName('Override')]) if (o.getAttribute('PartName') === '/xl/calcChain.xml') o.remove();
+    CFB.utils.cfb_add(zip, '/[Content_Types].xml', enc.encode(new XMLSerializer().serializeToString(ct)));
+    for (const r of [...rels.getElementsByTagName('Relationship')]) if (/calcChain/.test(r.getAttribute('Target'))) r.remove();
+    CFB.utils.cfb_add(zip, '/xl/_rels/workbook.xml.rels', enc.encode(new XMLSerializer().serializeToString(rels)));
+  }
+  return CFB.write(zip, { fileType: 'zip', type: 'array', compression: true });
+}
+
+// .xls / .csv 或结构特殊的文件：用 SheetJS 重新生成（格式可能丢失）
+function rewriteWorkbook(b64, edits, nowCol) {
+  const wb = XLSX.read(b64, { type: 'base64' });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  for (const [row, val] of Object.entries(edits)) {
+    const addr = XLSX.utils.encode_cell({ r: Number(row), c: nowCol });
+    ws[addr] = { t: 'n', v: val, ...(ws[addr] && ws[addr].z ? { z: ws[addr].z } : {}) };
+  }
+  return XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+}
+
+async function exportFile() {
+  if (!state) return toast('还没有数据可以导出');
+  let out;
+  try { out = state.fileB64.startsWith('UEsD') ? patchXlsx(state.fileB64, state.edits, state.nowCol) : null; }
+  catch (e) { out = null; }
+  if (!out) out = rewriteWorkbook(state.fileB64, state.edits, state.nowCol);
+  const name = exportName();
+  const file = new File([out], name, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file] }); }
+    catch (e) { if (e.name === 'AbortError') return toast('已取消导出'); throw e; }
+  } else {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(file);
+    a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  }
+  // 导出的表成为新的基准，修改清零
+  for (const it of state.items) if (it.row in state.edits) it.now = state.edits[it.row];
+  state.fileB64 = bufToB64(out);
+  state.fileName = name;
+  state.edits = {};
+  save();
+  render();
+  toast('已导出：' + name);
+}
+
+// ---------- 列表 ----------
+function fmt(v) {
+  if (v === '' || v == null) return '—';
+  return typeof v === 'number' ? String(Math.round(v * 100) / 100) : String(v);
+}
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+const collator = new Intl.Collator('zh', { numeric: true });
+
+function render() {
+  const pending = state ? Object.keys(state.edits).length : 0;
+  $('pendingBar').textContent = `⚠ 有 ${pending} 处修改未导出`;
+  $('pendingBar').classList.toggle('hidden', pending === 0);
+
+  if (!state) {
+    $('meta').textContent = '';
+    $('results').innerHTML = '<div class="empty">还没有数据<br>点右上角“导入/导出”，导入电脑传来的 Excel</div>';
+    return;
+  }
+  const q = $('q').value.trim().toLowerCase();
+  const list = state.items
+    .filter(it => !q || it.code.toLowerCase().includes(q))
+    .sort((a, b) => collator.compare(a.code, b.code));
+  const d = new Date(state.importedAt);
+  $('meta').textContent = `${q ? '找到' : '共'} ${list.length} 件 · 数据导入于 ${d.getMonth() + 1}月${d.getDate()}日`;
+  $('results').innerHTML = list.length ? list.map(it => {
+    const edited = it.row in state.edits;
+    const now = edited ? state.edits[it.row] : it.now;
+    return `<button class="item" data-row="${it.row}">
+      <div class="code">${esc(it.code)}${edited ? '<span class="tag">已改</span>' : ''}</div>
+      <div class="row">
+        <div><div class="k">之前价格</div><div class="v old">${esc(fmt(it.old))}</div></div>
+        <div><div class="k">现在价格</div><div class="v now">${esc(fmt(now))}</div></div>
+        <div><div class="k">件数</div><div class="v">${esc(fmt(it.qty))}</div></div>
+      </div></button>`;
+  }).join('') : '<div class="empty">没有找到这个编号</div>';
+}
+
+// ---------- 改现价 ----------
+let editing = null;
+function openEdit(row) {
+  editing = state.items.find(it => it.row === row);
+  if (!editing) return;
+  const cur = row in state.edits ? state.edits[row] : editing.now;
+  $('editCode').textContent = '改价格：' + editing.code;
+  $('editOld').textContent = `之前价格 ${fmt(editing.old)}（不变）`;
+  $('price').value = cur === '' || cur == null ? '' : fmt(cur);
+  $('editErr').textContent = '';
+  $('editShade').classList.remove('hidden');
+  $('price').focus();
+  $('price').select();
+}
+function closeEdit() { $('editShade').classList.add('hidden'); editing = null; }
+
+$('editForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const raw = $('price').value.trim().replace(/,/g, '.');
+  const val = Number(raw);
+  if (raw === '' || !Number.isFinite(val) || val < 0) { $('editErr').textContent = '请输入一个数字'; return; }
+  if (typeof editing.now === 'number' && Math.abs(val - editing.now) < 1e-9) delete state.edits[editing.row];
+  else state.edits[editing.row] = val;
+  save();
+  closeEdit();
+  render();
+});
+$('editCancel').onclick = closeEdit;
+$('editShade').addEventListener('click', e => { if (e.target === $('editShade')) closeEdit(); });
+$('results').addEventListener('click', e => {
+  const btn = e.target.closest('.item');
+  if (btn) openEdit(Number(btn.dataset.row));
+});
+
+// ---------- 导入/导出页 ----------
+function openIO() {
+  $('ioInfo').textContent = state
+    ? `当前：${state.items.length} 件商品 · 文件 ${state.fileName}`
+    : '当前还没有数据';
+  $('ioPage').classList.remove('hidden');
+}
+function closeIO() { $('ioPage').classList.add('hidden'); }
+
+$('openIO').onclick = openIO;
+$('closeIO').onclick = closeIO;
+$('importBtn').onclick = () => {
+  const pending = state ? Object.keys(state.edits).length : 0;
+  if (pending) {
+    $('confirmTitle').textContent = `手机上有 ${pending} 处修改还没导出`;
+    $('confirmShade').classList.remove('hidden');
+  } else $('file').click();
+};
+$('goExport').onclick = () => $('confirmShade').classList.add('hidden');
+$('forceImport').onclick = () => { $('confirmShade').classList.add('hidden'); $('file').click(); };
+$('file').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) importFile(f); };
+$('exportBtn').onclick = () => exportFile().catch(e => toast('导出失败：' + e.message));
+
+$('q').addEventListener('input', render);
+
+let toastTimer;
+function toast(msg) {
+  $('toast').textContent = msg;
+  $('toast').classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => $('toast').classList.add('hidden'), 2500);
+}
+
+render();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>
