@@ -34,7 +34,9 @@
     padding: calc(env(safe-area-inset-top) + 12px) 14px 10px; border-bottom: 1px solid var(--line); }
   .title { display: flex; justify-content: space-between; align-items: center; font-size: 20px; font-weight: 700; }
   .link { color: var(--accent); font-size: 15px; font-weight: 500; }
-  #q { width: 100%; margin-top: 10px; background: var(--field); color: var(--text); border: 0; border-radius: 10px;
+  .searchRow { display: flex; gap: 8px; margin-top: 10px; }
+  #kb { flex: none; width: 56px; border-radius: 10px; background: var(--field); color: var(--accent); font-size: 15px; font-weight: 600; }
+  #q { flex: 1; min-width: 0; background: var(--field); color: var(--text); border: 0; border-radius: 10px;
     padding: 10px 12px; font-size: 17px; outline: none; -webkit-appearance: none; }
   .warn { background: var(--warn-bg); color: var(--warn-text); font-size: 13px; padding: 7px 14px;
     border-bottom: 1px solid var(--warn-line); }
@@ -82,7 +84,10 @@
 
 <header>
   <div class="title">商品价格 <button class="link" id="openIO">导入/导出</button></div>
-  <input id="q" type="search" placeholder="搜索编号" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+  <div class="searchRow">
+    <input id="q" type="search" inputmode="numeric" placeholder="搜索编号" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    <button id="kb" type="button">ABC</button>
+  </div>
 </header>
 <div class="warn hidden" id="pendingBar"></div>
 <main>
@@ -414,6 +419,20 @@ $('file').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if
 $('exportBtn').onclick = () => exportFile().catch(e => toast('导出失败：' + e.message));
 
 $('q').addEventListener('input', render);
+
+// 搜索默认弹数字键盘；点按钮切到全键盘，离开搜索框后恢复数字
+function setKeyboard(alpha) {
+  $('q').inputMode = alpha ? 'text' : 'numeric';
+  $('kb').textContent = alpha ? '123' : 'ABC';
+}
+$('kb').onclick = () => {
+  setKeyboard($('q').inputMode === 'numeric');
+  $('q').blur();
+  $('q').focus();
+};
+$('q').addEventListener('blur', () => setTimeout(() => {
+  if (document.activeElement !== $('q')) setKeyboard(false);
+}, 400));
 
 let toastTimer;
 function toast(msg) {
