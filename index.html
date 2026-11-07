@@ -49,6 +49,8 @@
   .tag { font-size: 11px; font-weight: 500; background: var(--warn-bg); color: var(--warn-text);
     border-radius: 4px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; }
   .row { display: grid; grid-template-columns: 1fr 1fr 1fr; margin-top: 8px; }
+  .row.four { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .low { color: var(--warn-text); }
   .k { color: var(--muted); font-size: 12px; }
   .v { font-size: 17px; font-weight: 600; margin-top: 2px; }
   .old { color: var(--muted); font-weight: 500; }
@@ -161,7 +163,11 @@ function detectCols(header) {
     if (i >= 0 && !Object.values(found).includes(i)) found[key] = i;
   }
   // 四列都认出来才用表头，否则按 A–D 顺序
-  return Object.keys(found).length === 4 ? found : { code: 0, old: 1, now: 2, qty: 3 };
+  const cols = Object.keys(found).length === 4 ? found : { code: 0, old: 1, now: 2, qty: 3 };
+  // 「最低价」列可有可无，只按表头识别
+  const min = header.findIndex(h => String(h).includes('最低'));
+  if (min >= 0 && !Object.values(cols).includes(min)) cols.min = min;
+  return cols;
 }
 
 function parseWorkbook(b64) {
@@ -177,9 +183,10 @@ function parseWorkbook(b64) {
     const code = String(r[cols.code] ?? '').trim();
     if (!code) continue;
     // row/col 记录在表格中的绝对位置，导出时用来写回
-    items.push({ row: range.s.r + i, code, old: r[cols.old], now: r[cols.now], qty: r[cols.qty] });
+    items.push({ row: range.s.r + i, code, old: r[cols.old], now: r[cols.now], qty: r[cols.qty],
+      ...('min' in cols ? { min: r[cols.min] } : {}) });
   }
-  return { items, nowCol: range.s.c + cols.now };
+  return { items, nowCol: range.s.c + cols.now, hasMin: 'min' in cols };
 }
 
 function bufToB64(buf) {
@@ -192,10 +199,10 @@ function bufToB64(buf) {
 async function importFile(file) {
   try {
     const b64 = bufToB64(await file.arrayBuffer());
-    const { items, nowCol } = parseWorkbook(b64);
+    const { items, nowCol, hasMin } = parseWorkbook(b64);
     if (!items.length) throw new Error('没有读到任何商品（第一行应为表头）');
     const prev = state;
-    state = { fileName: file.name, importedAt: Date.now(), fileB64: b64, items, nowCol, edits: {} };
+    state = { fileName: file.name, importedAt: Date.now(), fileB64: b64, items, nowCol, hasMin, edits: {} };
     if (!save()) { state = prev; return; }
     closeIO();
     $('q').value = '';
@@ -353,9 +360,10 @@ function render() {
     const now = edited ? state.edits[it.row] : it.now;
     return `<button class="item" data-row="${it.row}">
       <div class="code">${esc(it.code)}${edited ? '<span class="tag">已改</span>' : ''}</div>
-      <div class="row">
+      <div class="row${state.hasMin ? ' four' : ''}">
         <div><div class="k">之前价格</div><div class="v old">${esc(fmt(it.old))}</div></div>
         <div><div class="k">现在价格</div><div class="v now">${esc(fmt(now))}</div></div>
+        ${state.hasMin ? `<div><div class="k">最低价</div><div class="v low">${esc(fmt(it.min))}</div></div>` : ''}
         <div><div class="k">件数</div><div class="v">${esc(fmt(it.qty))}</div></div>
       </div></button>`;
   }).join('') : '<div class="empty">没有找到这个编号</div>';
@@ -368,7 +376,7 @@ function openEdit(row) {
   if (!editing) return;
   const cur = row in state.edits ? state.edits[row] : editing.now;
   $('editCode').textContent = '改价格：' + editing.code;
-  $('editOld').textContent = `之前价格 ${fmt(editing.old)}（不变）`;
+  $('editOld').textContent = `之前价格 ${fmt(editing.old)}（不变）` + (state.hasMin ? ` · 最低价 ${fmt(editing.min)}` : '');
   $('price').value = cur === '' || cur == null ? '' : fmt(cur);
   $('editErr').textContent = '';
   $('editShade').classList.remove('hidden');
