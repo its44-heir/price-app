@@ -138,6 +138,7 @@ const STORE_KEY = 'price-app-v1';
 const $ = id => document.getElementById(id);
 
 // 状态：fileB64 是当前基准 Excel（导入的或上次导出的）；edits 是还没导出的现价修改，key 为表格行号
+const APP_VERSION = '11-07b';   // 每次发布改一下，「导入/导出」页能看到
 let state = load();
 
 function load() {
@@ -405,9 +406,9 @@ $('results').addEventListener('click', e => {
 
 // ---------- 导入/导出页 ----------
 function openIO() {
-  $('ioInfo').textContent = state
+  $('ioInfo').textContent = (state
     ? `当前：${state.items.length} 件商品 · 文件 ${state.fileName}`
-    : '当前还没有数据';
+    : '当前还没有数据') + ` · app 版本 ${APP_VERSION}`;
   $('ioPage').classList.remove('hidden');
 }
 function closeIO() { $('ioPage').classList.add('hidden'); }
@@ -448,6 +449,17 @@ function toast(msg) {
   $('toast').classList.remove('hidden');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => $('toast').classList.add('hidden'), 2500);
+}
+
+// 旧版本导入的数据没有读「最低价」：打开时从已存的表里补读一次，不用重新导入
+if (state && state.hasMin === undefined) {
+  try {
+    const { items, hasMin } = parseWorkbook(state.fileB64);
+    const minByRow = new Map(items.map(it => [it.row, it.min]));
+    if (hasMin) for (const it of state.items) it.min = minByRow.get(it.row);
+    state.hasMin = hasMin;
+    save();
+  } catch (e) { /* 读不了就保持原样 */ }
 }
 
 render();
